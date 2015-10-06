@@ -3,6 +3,7 @@ package me.chenfuduo.mymarketpro.adapter;
 import android.text.format.Formatter;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.RatingBar;
 import android.widget.TextView;
 
@@ -14,6 +15,7 @@ import me.chenfuduo.mymarketpro.R;
 import me.chenfuduo.mymarketpro.bean.AppInfo;
 import me.chenfuduo.mymarketpro.holder.BaseViewHolder;
 import me.chenfuduo.mymarketpro.http.HttpHelper;
+import me.chenfuduo.mymarketpro.protocol.GameProtocol;
 import me.chenfuduo.mymarketpro.utils.BitmapHelper;
 import me.chenfuduo.mymarketpro.utils.UIUtils;
 
@@ -21,8 +23,8 @@ import me.chenfuduo.mymarketpro.utils.UIUtils;
  * Created by chenfuduo on 2015/10/3.
  */
 public class GameAdapter extends DefaultAdapter<AppInfo> {
-    public GameAdapter(List<AppInfo> appInfos) {
-        super(appInfos);
+    public GameAdapter(List<AppInfo> appInfos,ListView listView) {
+        super(appInfos,listView);
     }
 
     @Override
@@ -32,6 +34,14 @@ public class GameAdapter extends DefaultAdapter<AppInfo> {
             viewHolder = new ViewHolder();
         }
         return viewHolder;
+    }
+
+    @Override
+    protected List<AppInfo> onload() {
+        GameProtocol gameProtocol = new GameProtocol();
+        List<AppInfo> appInfoList = gameProtocol.load(datas.size());
+        datas.addAll(appInfoList);
+        return appInfoList;
     }
 
 

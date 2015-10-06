@@ -10,6 +10,7 @@ import java.util.List;
 import me.chenfuduo.mymarketpro.R;
 import me.chenfuduo.mymarketpro.adapter.HomeAdapter;
 import me.chenfuduo.mymarketpro.bean.AppInfo;
+import me.chenfuduo.mymarketpro.holder.HomePictureHolder;
 import me.chenfuduo.mymarketpro.protocol.HomeProtocol;
 import me.chenfuduo.mymarketpro.view.BaseListView;
 import me.chenfuduo.mymarketpro.view.LoadingPage;
@@ -24,14 +25,27 @@ public class HomeFragment extends BaseFragment {
 
     private HomeAdapter adapter;
 
+    List<String> pictures;//循环广告
 
 
     @Override
     protected View createSuccessView() {
         BaseListView listView = new BaseListView(getActivity());
 
-        if (adapter == null){
-            adapter = new HomeAdapter(appInfos);
+        HomePictureHolder homePictureHolder = new HomePictureHolder();
+
+        homePictureHolder.setData(pictures);
+
+        View convertView = homePictureHolder.getConvertView();
+
+        /*convertView.setLayoutParams(new AbsListView.LayoutParams(
+                AbsListView.LayoutParams.MATCH_PARENT,
+                AbsListView.LayoutParams.WRAP_CONTENT));*/
+
+        listView.addHeaderView(convertView);
+
+        if (adapter == null) {
+            adapter = new HomeAdapter(appInfos,listView);
         }
 
         listView.setAdapter(adapter);
@@ -40,7 +54,9 @@ public class HomeFragment extends BaseFragment {
         bitmapUtils.configDefaultLoadingImage(R.drawable.ic_default);
 
         listView.setOnScrollListener(new PauseOnScrollListener
-                (bitmapUtils,false,true));
+                (bitmapUtils, false, true));
+
+
 
         return listView;
     }
@@ -54,9 +70,11 @@ public class HomeFragment extends BaseFragment {
             System.out.println(info.toString());
 
         }*/
+
+        pictures = protocol.getPictures();
+
         return checkData(appInfos);
     }
-
 
 
     @Override

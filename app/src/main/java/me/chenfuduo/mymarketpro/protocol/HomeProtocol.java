@@ -14,12 +14,20 @@ import me.chenfuduo.mymarketpro.bean.AppInfo;
  */
 public class HomeProtocol extends BaseProtocol<List<AppInfo>>{
 
+    private List<String> pictures;
+
+
     @Override
     protected List<AppInfo> parserJson(String json) {
         List<AppInfo> appInfos = new ArrayList<>();
-
+        pictures = new ArrayList<>();
         try {
             JSONObject jsonObject = new JSONObject(json);
+            JSONArray picture = jsonObject.getJSONArray("picture");
+            for (int i = 0; i < picture.length(); i++) {
+                String string = picture.getString(i);
+                pictures.add(string);
+            }
             JSONArray jsonArray = jsonObject.getJSONArray("list");
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject object = jsonArray.getJSONObject(i);
@@ -40,6 +48,10 @@ public class HomeProtocol extends BaseProtocol<List<AppInfo>>{
             e.printStackTrace();
             return null;
         }
+    }
+
+    public List<String> getPictures() {
+        return pictures;
     }
 
     @Override

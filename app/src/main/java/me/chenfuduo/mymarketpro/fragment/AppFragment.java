@@ -35,7 +35,7 @@ public class AppFragment extends BaseFragment {
         BaseListView listView = new BaseListView(getActivity());
 
         if (adapter == null){
-            adapter = new AppAdapter(appInfos);
+            adapter = new AppAdapter(appInfos,listView);
         }
 
         listView.setAdapter(adapter);

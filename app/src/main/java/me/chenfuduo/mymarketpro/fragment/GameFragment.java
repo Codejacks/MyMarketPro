@@ -35,7 +35,7 @@ public class GameFragment extends BaseFragment {
         BaseListView listView = new BaseListView(getActivity());
 
         if (adapter == null){
-            adapter = new GameAdapter(appInfos);
+            adapter = new GameAdapter(appInfos,listView);
         }
 
         listView.setAdapter(adapter);

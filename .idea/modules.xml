@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/MyMarketPro.iml" filepath="$PROJECT_DIR$/MyMarketPro.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/myframework/myframework.iml" filepath="$PROJECT_DIR$/myframework/myframework.iml" />
     </modules>
   </component>
 </project>

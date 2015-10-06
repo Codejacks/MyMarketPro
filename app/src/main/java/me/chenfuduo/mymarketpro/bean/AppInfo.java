@@ -11,18 +11,42 @@ public class AppInfo {
     private String packageName;//app的包名
     private String iconUrl;//app的icon地址
     private float stars;//app的评价星级
-    private String downloadNum;//app的下载数量
-    private String version;//app的版本
-    private String date;//app的发布日期
     private long size;//app的size
     private String downloadUrl;//下载地址
     private String des;//简介
+
+
+
+    private String downloadNum;//app的下载数量
+    private String version;//app的版本
+    private String date;//app的发布日期
     private String author; //作者
     private List<String> screen;//截图下载地址
     private List<String> safeUrl;//安全信息图片地址
     private List<String> safeDesUrl;//安全信息图片勾勾地址
     private List<String> safeDes;//安全信息图片勾勾后面描述信息
     private List<Integer> safeDesColor;//安全信息的文字颜色
+
+
+    public AppInfo(long id, String name, String packageName, String iconUrl, float stars, long size, String downloadUrl, String des, String downloadNum, String version, String date, String author, List<String> screen, List<String> safeUrl, List<String> safeDesUrl, List<String> safeDes, List<Integer> safeDesColor) {
+        this.id = id;
+        this.name = name;
+        this.packageName = packageName;
+        this.iconUrl = iconUrl;
+        this.stars = stars;
+        this.size = size;
+        this.downloadUrl = downloadUrl;
+        this.des = des;
+        this.downloadNum = downloadNum;
+        this.version = version;
+        this.date = date;
+        this.author = author;
+        this.screen = screen;
+        this.safeUrl = safeUrl;
+        this.safeDesUrl = safeDesUrl;
+        this.safeDes = safeDes;
+        this.safeDesColor = safeDesColor;
+    }
 
     public AppInfo(long id, String name, String packageName, String iconUrl, float stars, String downloadUrl, String des, long size) {
         this.id = id;
@@ -182,6 +206,15 @@ public class AppInfo {
                 ", size=" + size +
                 ", downloadUrl='" + downloadUrl + '\'' +
                 ", des='" + des + '\'' +
+                ", downloadNum='" + downloadNum + '\'' +
+                ", version='" + version + '\'' +
+                ", date='" + date + '\'' +
+                ", author='" + author + '\'' +
+                ", screen=" + screen +
+                ", safeUrl=" + safeUrl +
+                ", safeDesUrl=" + safeDesUrl +
+                ", safeDes=" + safeDes +
+                ", safeDesColor=" + safeDesColor +
                 '}';
     }
 }

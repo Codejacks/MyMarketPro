@@ -3,8 +3,10 @@ package me.chenfuduo.mymarketpro.adapter;
 import android.text.format.Formatter;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.RatingBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.lidroid.xutils.BitmapUtils;
 
@@ -14,6 +16,7 @@ import me.chenfuduo.mymarketpro.R;
 import me.chenfuduo.mymarketpro.bean.AppInfo;
 import me.chenfuduo.mymarketpro.holder.BaseViewHolder;
 import me.chenfuduo.mymarketpro.http.HttpHelper;
+import me.chenfuduo.mymarketpro.protocol.AppProtocol;
 import me.chenfuduo.mymarketpro.utils.BitmapHelper;
 import me.chenfuduo.mymarketpro.utils.UIUtils;
 
@@ -21,8 +24,12 @@ import me.chenfuduo.mymarketpro.utils.UIUtils;
  * Created by chenfuduo on 2015/10/3.
  */
 public class AppAdapter extends DefaultAdapter<AppInfo> {
-    public AppAdapter(List<AppInfo> appInfos) {
-        super(appInfos);
+
+    ListView listView;
+
+    public AppAdapter(List<AppInfo> appInfos,ListView listView) {
+        super(appInfos,listView);
+        this.listView = listView;
     }
 
     @Override
@@ -33,6 +40,22 @@ public class AppAdapter extends DefaultAdapter<AppInfo> {
         }
         return viewHolder;
     }
+
+
+    @Override
+    public void onInnerItemClick(int position) {
+        Toast.makeText(UIUtils.getContext(),"position:" + position,Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    protected List<AppInfo> onload() {
+        AppProtocol appProtocol = new AppProtocol();
+        List<AppInfo> appInfoList = appProtocol.load(datas.size());
+        datas.addAll(appInfoList);
+        return appInfoList;
+    }
+
+
 
 
     static class ViewHolder extends BaseViewHolder<AppInfo>{

@@ -3665,3 +3665,1929 @@ public class AppFragment extends BaseFragment {
 
 ![效果图](http://7xljei.com1.z0.glb.clouddn.com/gameandappui.gif)
 
+# 2015.10.03晚上
+
+## MoreViewHolder(加载更多)
+package me.chenfuduo.mymarketpro.holder;
+
+import android.view.View;
+import android.widget.RelativeLayout;
+
+import me.chenfuduo.mymarketpro.R;
+import me.chenfuduo.mymarketpro.utils.UIUtils;
+
+/**
+ * Created by chenfuduo on 2015/10/3.
+ */
+public class MoreViewHolder extends BaseViewHolder<Integer>{
+    public static final int HAS_NO_MORE = 0;
+    public static final int LOAD_ERROR = 1;
+    public static final int HAS_MORE = 2;
+
+
+    private RelativeLayout rl_more_loading,rl_more_error;
+
+    @Override
+    public View initView() {
+        View view = UIUtils.inflate(R.layout.load_more);
+        rl_more_loading = (RelativeLayout) view.findViewById(R.id.rl_more_loading);
+        rl_more_error = (RelativeLayout) view.findViewById(R.id.rl_more_error);
+        return view;
+    }
+
+
+    @Override
+    public void refreshView(Integer integer) {
+
+    }
+}
+```
+那么在DefaultAdapter中：
+```java
+ @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        BaseViewHolder viewHolder;
+        if (position == datas.size()){//MoreHolder
+            viewHolder = getMoreViewHolder();
+            return viewHolder.getConvertView();
+        }
+        if (convertView == null) {
+            viewHolder = getHolder();//普通条目的holder
+        } else {
+            viewHolder = (BaseViewHolder) convertView.getTag();
+        }
+
+
+        Data data = datas.get(position);
+
+        viewHolder.setData(data);
+
+        return viewHolder.getConvertView();
+    }
+```
+一运行,出现下面的效果：
+![效果图](http://7xljei.com1.z0.glb.clouddn.com/errormoreloading.gif)
+
+也看到了上面出现了错误,日志如下：
+```
+10-03 13:52:40.317  31923-31923/me.chenfuduo.mymarketpro E/AndroidRuntime﹕ FATAL EXCEPTION: main
+    java.lang.ClassCastException: me.chenfuduo.mymarketpro.bean.AppInfo cannot be cast to java.lang.Integer
+            at me.chenfuduo.mymarketpro.holder.MoreViewHolder.refreshView(MoreViewHolder.java:12)
+            at me.chenfuduo.mymarketpro.holder.BaseViewHolder.setData(BaseViewHolder.java:23)
+            at me.chenfuduo.mymarketpro.adapter.DefaultAdapter.getView(DefaultAdapter.java:55)
+```
+
+
+## ListView多类型复用
+
+```java
+package me.chenfuduo.mymarketpro.adapter;
+
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+
+import java.util.List;
+
+import me.chenfuduo.mymarketpro.holder.BaseViewHolder;
+import me.chenfuduo.mymarketpro.holder.MoreViewHolder;
+
+/**
+ * Created by chenfuduo on 2015/10/3.
+ */
+public abstract class DefaultAdapter<Data> extends BaseAdapter {
+
+    protected List<Data> datas;
+
+    public DefaultAdapter(List<Data> datas) {
+        this.datas = datas;
+    }
+
+    private static final int DEFAULT_ITEM = 0;
+    private static final int MORE_ITEM = 1;
+
+    @Override
+    public int getCount() {
+        return datas.size() + 1;//+1是因为加载更多
+    }
+
+    @Override
+    public Object getItem(int position) {
+        return datas.get(position);
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return position;
+    }
+
+
+    @Override
+    public int getItemViewType(int position) {
+        if (position == datas.size()) { // 当前是最后一个条目
+            return MORE_ITEM;
+        }
+        return getInnerItemViewType(position); // 如果不是最后一个条目 返回默认类型
+    }
+
+    private int getInnerItemViewType(int position) {
+        return DEFAULT_ITEM;
+    }
+
+    @Override
+    public int getViewTypeCount() {
+        return super.getViewTypeCount() + 1;//加载更多  2种不同类型
+    }
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        BaseViewHolder viewHolder = null;
+        switch (getItemViewType(position)) {
+            case MORE_ITEM:
+                if (convertView == null) {
+                    viewHolder = getMoreViewHolder();
+                } else {
+                    viewHolder = (BaseViewHolder) convertView.getTag();
+                }
+                break;
+            case DEFAULT_ITEM:
+                if (convertView == null) {
+                    viewHolder = getHolder();
+                } else {
+                    viewHolder = (BaseViewHolder) convertView.getTag();
+                }
+                if (position < datas.size()) {
+                    viewHolder.setData(datas.get(position));
+                }
+                break;
+        }
+        return viewHolder.getConvertView();
+    }
+
+
+    private MoreViewHolder holder;
+
+    private BaseViewHolder getMoreViewHolder() {
+        if(holder!=null){
+            return holder;
+        }else{
+            holder=new MoreViewHolder();
+            return holder;
+        }
+    }
+
+    public abstract BaseViewHolder<Data> getHolder();
+
+
+}
+```
+
+
+ok,那么现在上面出现的错误信息就会消失了.
+
+
+注意两个新的api。
+
+
+## 加载更多的业务逻辑
+
+MoreViewHolder交给adapter去处理：
+
+```java
+package me.chenfuduo.mymarketpro.holder;
+
+import android.view.View;
+import android.widget.RelativeLayout;
+
+import me.chenfuduo.mymarketpro.R;
+import me.chenfuduo.mymarketpro.adapter.DefaultAdapter;
+import me.chenfuduo.mymarketpro.utils.UIUtils;
+
+/**
+ * Created by chenfuduo on 2015/10/3.
+ */
+public class MoreViewHolder extends BaseViewHolder<Integer>{
+    public static final int HAS_NO_MORE = 0;
+    public static final int LOAD_ERROR = 1;
+    public static final int HAS_MORE = 2;
+
+
+    private RelativeLayout rl_more_loading,rl_more_error;
+
+    @Override
+    public View initView() {
+        View view = UIUtils.inflate(R.layout.load_more);
+        rl_more_loading = (RelativeLayout) view.findViewById(R.id.rl_more_loading);
+        rl_more_error = (RelativeLayout) view.findViewById(R.id.rl_more_error);
+        return view;
+    }
+
+
+    private DefaultAdapter adapter;
+
+    public MoreViewHolder(DefaultAdapter adapter) {
+        super();
+        this.adapter = adapter;
+    }
+
+
+    @Override
+    public View getConvertView() {
+        loadMore();
+        return super.getConvertView();
+    }
+
+    private void loadMore() {
+        adapter.loadMore();
+    }
+
+    @Override
+    public void refreshView(Integer integer) {
+        rl_more_error.setVisibility(data==LOAD_ERROR?View.VISIBLE:View.GONE);
+        rl_more_loading.setVisibility(data==HAS_MORE?View.VISIBLE:View.GONE);
+    }
+}
+```
+
+
+DefaultAdapter：
+
+具体的加载更多的,则交给子类去处理。
+
+```java
+package me.chenfuduo.mymarketpro.adapter;
+
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+
+import java.util.List;
+
+import me.chenfuduo.mymarketpro.holder.BaseViewHolder;
+import me.chenfuduo.mymarketpro.holder.MoreViewHolder;
+import me.chenfuduo.mymarketpro.manager.ThreadManager;
+import me.chenfuduo.mymarketpro.utils.UIUtils;
+
+/**
+ * Created by chenfuduo on 2015/10/3.
+ */
+public abstract class DefaultAdapter<Data> extends BaseAdapter {
+
+    protected List<Data> datas;
+
+    public DefaultAdapter(List<Data> datas) {
+        this.datas = datas;
+    }
+
+    private static final int DEFAULT_ITEM = 0;
+    private static final int MORE_ITEM = 1;
+
+    @Override
+    public int getCount() {
+        return datas.size() + 1;//+1是因为加载更多
+    }
+
+    @Override
+    public Object getItem(int position) {
+        return datas.get(position);
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return position;
+    }
+
+
+    @Override
+    public int getItemViewType(int position) {
+        if (position == datas.size()) { // 当前是最后一个条目
+            return MORE_ITEM;
+        }
+        return getInnerItemViewType(position); // 如果不是最后一个条目 返回默认类型
+    }
+
+    private int getInnerItemViewType(int position) {
+        return DEFAULT_ITEM;
+    }
+
+    @Override
+    public int getViewTypeCount() {
+        return super.getViewTypeCount() + 1;//加载更多  2种不同类型
+    }
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        BaseViewHolder viewHolder = null;
+        switch (getItemViewType(position)) {
+            case MORE_ITEM:
+                if (convertView == null) {
+                    viewHolder = getMoreViewHolder();
+                } else {
+                    viewHolder = (BaseViewHolder) convertView.getTag();
+                }
+                break;
+            case DEFAULT_ITEM:
+                if (convertView == null) {
+                    viewHolder = getHolder();
+                } else {
+                    viewHolder = (BaseViewHolder) convertView.getTag();
+                }
+                if (position < datas.size()) {
+                    viewHolder.setData(datas.get(position));
+                }
+                break;
+        }
+        return viewHolder.getConvertView();
+    }
+
+
+    private MoreViewHolder holder;
+
+    private BaseViewHolder getMoreViewHolder() {
+        if(holder!=null){
+            return holder;
+        }else{
+            holder=new MoreViewHolder(this);
+            return holder;
+        }
+    }
+
+    public abstract BaseViewHolder<Data> getHolder();
+
+
+    public void loadMore() {
+        ThreadManager.getLongPool().execute(new Runnable() {
+            @Override
+            public void run() {
+                final List<Data> newData = onload();
+                UIUtils.runInMainThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(newData==null){
+                            holder.setData(MoreViewHolder.LOAD_ERROR);//
+                        }else if(newData.size()==0){
+                            holder.setData(MoreViewHolder.HAS_NO_MORE);
+                        }else{
+                            // 成功了
+                            holder.setData(MoreViewHolder.HAS_MORE);
+                            datas.addAll(newData);//  给listView之前的集合添加一个新的集合
+                            notifyDataSetChanged();// 刷新界面
+
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * 加载更多数据
+     */
+    protected  abstract List<Data> onload();
+
+}
+```
+
+## 加载更多
+
+
+加载更多的逻辑在各个应用中逻辑不一致,根据自己需求定义即可。重写onLoad()方法。
+```java
+ @Override
+    protected List<AppInfo> onload() {
+        AppProtocol appProtocol = new AppProtocol();
+        List<AppInfo> appInfoList = appProtocol.load(datas.size());
+        datas.addAll(appInfoList);
+        return appInfoList;
+    }
+```
+
+
+到现在,实现的效果图如下：
+![效果图](http://7xljei.com1.z0.glb.clouddn.com/loadingmore.gif)
+
+
+# 2015.10.05晚上
+
+玩了一天,现在继续。
+
+## 框架搭建复习
+
+首先看下面的效果图：
+
+![效果图](http://7xljei.com1.z0.glb.clouddn.com/framework1005.gif)
+
+那么在代码实现上,是这样的.
+
+MainActivity:
+
+```java
+package me.chenfuduo.myframework;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.ListView;
+import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class MainActivity extends AppCompatActivity {
+
+    private ListView listView;
+
+    private List<String> datas;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        datas = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            datas.add("duoduo" + i);
+        }
+        listView = (ListView) findViewById(R.id.list);
+        listView.setAdapter(new MainAdapter());
+    }
+
+    public void onClick(View view){
+        Intent intent = new Intent(MainActivity.this,OtherActivity.class);
+        startActivity(intent);
+    }
+
+
+    class MainAdapter extends BaseAdapter{
+
+        @Override
+        public int getCount() {
+            return datas.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return datas.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            MainHolder mainHolder;
+            if (convertView == null){
+                convertView = View.inflate(MainActivity.this,R.layout.list_item_main,null);
+                mainHolder = new MainHolder();
+                mainHolder.textView = (TextView) convertView.findViewById(R.id.textView);
+                convertView.setTag(mainHolder);
+            }else{
+                mainHolder = (MainHolder) convertView.getTag();
+            }
+            mainHolder.textView.setText(datas.get(position));
+            return convertView;
+        }
+    }
+
+
+    class MainHolder{
+        TextView textView;
+    }
+
+
+}
+```
+
+OtherActivity:
+
+```java
+package me.chenfuduo.myframework;
+
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.ImageView;
+import android.widget.ListView;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class OtherActivity extends AppCompatActivity {
+
+    private ListView listView;
+
+    private List<Drawable> datas;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_other);
+        listView = (ListView) findViewById(R.id.list);
+        datas = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            Drawable drawable = getResources().getDrawable(R.mipmap.ic_launcher);
+            datas.add(drawable);
+        }
+
+        listView.setAdapter(new OtherAdapter());
+    }
+
+    class OtherAdapter extends BaseAdapter {
+
+        @Override
+        public int getCount() {
+            return datas.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return datas.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            MainHolder mainHolder;
+            if (convertView == null){
+                convertView = View.inflate(OtherActivity.this,R.layout.list_item_other,null);
+                mainHolder = new MainHolder();
+                mainHolder.imageView = (ImageView) convertView.findViewById(R.id.imageView);
+                convertView.setTag(mainHolder);
+            }else{
+                mainHolder = (MainHolder) convertView.getTag();
+            }
+            mainHolder.imageView.setImageDrawable(datas.get(position));
+            return convertView;
+        }
+    }
+
+
+    class MainHolder{
+        ImageView imageView;
+    }
+
+
+}
+```
+
+Ok,那么现在就对adapter进行抽取。
+创建DefaultAdapter,并让Activity中的adapter继承自它。
+
+那么在上面的两个adapter当中,实质上adapter的`getCount`,`getItem`,`getItemId`,三个方法是一样的。
+于是将这三个方法剪切到基类的adapter中。
+到这里,基类adapter的代码如下：
+```java
+package me.chenfuduo.myframework;
+
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+
+/**
+ * Created by chenfuduo on 2015/10/4.
+ */
+public class DefaultAdapter extends BaseAdapter {
+    @Override
+    public int getCount() {
+        return datas.size();
+    }
+
+    @Override
+    public Object getItem(int position) {
+        return datas.get(position);
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return position;
+    }
+
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        return null;
+    }
+}
+```
+发现没有数据源,所以需要在构造器中将数据传过来,但是两个Activity的数据类型显然不一致,所以这里用泛型代替。
+
+修改后变成这样了：
+```java
+package me.chenfuduo.myframework;
+
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+
+import java.util.List;
+
+/**
+ * Created by chenfuduo on 2015/10/4.
+ */
+public class DefaultAdapter<T> extends BaseAdapter {
+
+    private List<T> datas;
+
+    public DefaultAdapter(List<T> datas) {
+        this.datas = datas;
+    }
+
+    @Override
+    public int getCount() {
+        return datas.size();
+    }
+
+    @Override
+    public Object getItem(int position) {
+        return datas.get(position);
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return position;
+    }
+
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        return null;
+    }
+}
+```
+ok,那么轮到两个Activity了。传一个具体的参数类型,以及实现构造器.
+```java
+class MainAdapter extends DefaultAdapter<String>{
+
+        public MainAdapter(List<String> datas) {
+            super(datas);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            MainHolder mainHolder;
+            if (convertView == null){
+                convertView = View.inflate(MainActivity.this,R.layout.list_item_main,null);
+                mainHolder = new MainHolder();
+                mainHolder.textView = (TextView) convertView.findViewById(R.id.textView);
+                convertView.setTag(mainHolder);
+            }else{
+                mainHolder = (MainHolder) convertView.getTag();
+            }
+            mainHolder.textView.setText(datas.get(position));
+            return convertView;
+        }
+    }
+
+
+    class MainHolder{
+        TextView textView;
+    }
+```
+另一个也是如此。
+
+
+```java
+ class OtherAdapter extends DefaultAdapter<Drawable> {
+
+
+         public OtherAdapter(List<Drawable> datas) {
+             super(datas);
+         }
+
+         @Override
+         public View getView(int position, View convertView, ViewGroup parent) {
+             OtherHolder otherHolder;
+             if (convertView == null) {
+                 convertView = View.inflate(OtherActivity.this, R.layout.list_item_other, null);
+                 otherHolder = new OtherHolder();
+                 otherHolder.imageView = (ImageView) convertView.findViewById(R.id.imageView);
+                 convertView.setTag(otherHolder);
+             } else {
+                 otherHolder = (OtherHolder) convertView.getTag();
+             }
+             otherHolder.imageView.setImageDrawable(datas.get(position));
+             return convertView;
+         }
+     }
+
+
+     class OtherHolder {
+         ImageView imageView;
+     }
+```
+
+前三个方法抽取成功后,现在是最后一个方法的抽取,`getView`,如MainActivity中的这个方法如下：
+
+```java
+ @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            MainHolder mainHolder;
+            if (convertView == null){
+                convertView = View.inflate(MainActivity.this,R.layout.list_item_main,null);
+                mainHolder = new MainHolder();
+                mainHolder.textView = (TextView) convertView.findViewById(R.id.textView);
+                convertView.setTag(mainHolder);
+            }else{
+                mainHolder = (MainHolder) convertView.getTag();
+            }
+            mainHolder.textView.setText(datas.get(position));
+            return convertView;
+        }
+    }
+
+
+    class MainHolder{
+        TextView textView;
+    }
+```
+
+`getView`方法和MainHolder之间有个重要的关系。我们可以先这样抽取：
+
+```java
+class MainAdapter extends DefaultAdapter<String> {
+
+        public MainAdapter(List<String> datas) {
+            super(datas);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            MainHolder mainHolder;
+            if (convertView == null) {
+                mainHolder = new MainHolder();
+            } else {
+                mainHolder = (MainHolder) convertView.getTag();
+            }
+            mainHolder.textView.setText(datas.get(position));
+            return convertView;
+        }
+    }
+
+
+    class MainHolder {
+        TextView textView;
+        View convertView;
+        public MainHolder() {
+            convertView = View.inflate(MainActivity.this, R.layout.list_item_main, null);
+            this.textView = (TextView) convertView.findViewById(R.id.textView);
+            convertView.setTag(this);
+        }
+
+    }
+```
+
+
+这一步的抽取应该很好理解。改过后,如下：
+```java
+class MainAdapter extends DefaultAdapter<String> {
+
+        public MainAdapter(List<String> datas) {
+            super(datas);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            MainHolder mainHolder;
+            if (convertView == null) {
+                mainHolder = new MainHolder();
+            } else {
+                mainHolder = (MainHolder) convertView.getTag();
+            }
+            String str = datas.get(position);
+            mainHolder.setData(str);
+            return mainHolder.getConvertView();
+        }
+    }
+
+
+    class MainHolder {
+        TextView textView;
+        View convertView;
+        String data;
+        public MainHolder() {
+            convertView = View.inflate(MainActivity.this, R.layout.list_item_main, null);
+            this.textView = (TextView) convertView.findViewById(R.id.textView);
+            convertView.setTag(this);
+        }
+
+        public View getConvertView() {
+            return convertView;
+        }
+
+        public void setData(String data) {
+            this.data = data;
+            refreshView();
+        }
+
+        public void refreshView(){
+            this.textView.setText(data);
+        }
+
+    }
+
+```
+
+
+同理：
+```java
+class OtherAdapter extends DefaultAdapter<Drawable> {
+
+
+        public OtherAdapter(List<Drawable> datas) {
+            super(datas);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            OtherHolder otherHolder;
+            if (convertView == null) {
+                otherHolder = new OtherHolder();
+            } else {
+                otherHolder = (OtherHolder) convertView.getTag();
+            }
+            Drawable drawable = datas.get(position);
+            otherHolder.setData(drawable);
+            return otherHolder.getConvertView();
+        }
+    }
+
+
+    class OtherHolder {
+        ImageView imageView;
+        View convertView;
+        Drawable data;
+        public OtherHolder(){
+            convertView = View.inflate(OtherActivity.this, R.layout.list_item_other, null);
+            this.imageView = (ImageView) convertView.findViewById(R.id.imageView);
+            convertView.setTag(this);
+        }
+
+        public View getConvertView() {
+            return convertView;
+        }
+
+        public void setData(Drawable data) {
+            this.data = data;
+            refreshView();
+        }
+
+        public void refreshView(){
+            this.imageView.setImageDrawable(data);
+        }
+
+    }
+
+```
+
+那么`getView`方法到这里有就是抽取完毕了。下面观察下两个Holder的代码。
+```java
+class MainHolder {
+        TextView textView;
+        View convertView;
+        String data;
+        public MainHolder() {
+            convertView = View.inflate(MainActivity.this, R.layout.list_item_main, null);
+            this.textView = (TextView) convertView.findViewById(R.id.textView);
+            convertView.setTag(this);
+        }
+
+        public View getConvertView() {
+            return convertView;
+        }
+
+        public void setData(String data) {
+            this.data = data;
+            refreshView();
+        }
+
+        public void refreshView(){
+            this.textView.setText(data);
+        }
+
+    }
+```
+
+OtherHolder:
+
+```java
+class OtherHolder {
+        ImageView imageView;
+        View convertView;
+        Drawable data;
+        public OtherHolder(){
+            convertView = View.inflate(OtherActivity.this, R.layout.list_item_other, null);
+            this.imageView = (ImageView) convertView.findViewById(R.id.imageView);
+            convertView.setTag(this);
+        }
+
+        public View getConvertView() {
+            return convertView;
+        }
+
+        public void setData(Drawable data) {
+            this.data = data;
+            refreshView();
+        }
+
+        public void refreshView(){
+            this.imageView.setImageDrawable(data);
+        }
+
+    }
+```
+
+
+是不是很像,所以也可以进行抽取。上面的两个holder的代码中,均有构造器,所以在基类中提供一个构造器.
+在两个holder的构造器中,前面两行所做的就是初始化view的动作。但是不同的类,是不同的,所以在基类holder中,这样去实现.
+```java
+package me.chenfuduo.myframework;
+
+import android.view.View;
+
+/**
+ * Created by chenfuduo on 2015/10/5.
+ */
+public abstract class BaseHolder {
+
+    protected View convertView;
+    public BaseHolder() {
+        convertView = initView();
+    }
+
+    public abstract View initView();
+}
+```
+
+MainHolder:
+```java
+class MainHolder extends BaseHolder{
+        TextView textView;
+        View convertView;
+        String data;
+        @Override
+        public View initView() {
+            convertView = View.inflate(MainActivity.this, R.layout.list_item_main, null);
+            this.textView = (TextView) convertView.findViewById(R.id.textView);
+            return convertView;
+        }
+
+        public View getConvertView() {
+            return convertView;
+        }
+
+        public void setData(String data) {
+            this.data = data;
+            refreshView();
+        }
+
+        public void refreshView(){
+            this.textView.setText(data);
+        }
+
+    }
+```
+
+OtherHolder:
+```java
+class OtherHolder extends BaseHolder{
+        ImageView imageView;
+        View convertView;
+        Drawable data;
+        @Override
+        public View initView() {
+            convertView = View.inflate(OtherActivity.this, R.layout.list_item_other, null);
+            this.imageView = (ImageView) convertView.findViewById(R.id.imageView);
+            return convertView;
+        }
+
+        public View getConvertView() {
+            return convertView;
+        }
+
+        public void setData(Drawable data) {
+            this.data = data;
+            refreshView();
+        }
+
+        public void refreshView(){
+            this.imageView.setImageDrawable(data);
+        }
+
+    }
+```
+
+在两个holder中,发现`setData()`方法仍然可以进行抽取.到最后,是这样的。
+BaseHolder：
+```java
+package me.chenfuduo.myframework;
+
+import android.view.View;
+
+/**
+ * Created by chenfuduo on 2015/10/5.
+ */
+public abstract class BaseHolder<T> {
+
+    protected T data;
+
+    protected View convertView;
+    public BaseHolder() {
+        convertView = initView();
+        convertView.setTag(this);
+    }
+
+    public void setData(T data) {
+        this.data = data;
+        refreshView();
+    }
+
+
+    public View getConvertView() {
+        return convertView;
+    }
+
+    protected abstract void refreshView();
+
+    public abstract View initView();
+}
+```
+
+
+MainHolder:
+
+
+```java
+ class MainHolder extends BaseHolder<String> {
+        TextView textView;
+        @Override
+        public View initView() {
+            convertView = View.inflate(MainActivity.this, R.layout.list_item_main, null);
+            this.textView = (TextView) convertView.findViewById(R.id.textView);
+            return convertView;
+        }
+
+        @Override
+        protected void refreshView() {
+            this.textView.setText(data);
+        }
+    }
+```
+
+OtherHolder:
+
+
+```java
+class OtherHolder extends BaseHolder<Drawable> {
+        ImageView imageView;
+        @Override
+        public View initView() {
+            convertView = View.inflate(OtherActivity.this, R.layout.list_item_other, null);
+            this.imageView = (ImageView) convertView.findViewById(R.id.imageView);
+            return convertView;
+        }
+        @Override
+        protected void refreshView() {
+            this.imageView.setImageDrawable(data);
+        }
+    }
+```
+
+那么进行基类adapter对两个adapter中的`getView`方法的抽取.
+
+那么,到此为止。整个框架也就完整了.
+BaseHolder:
+```java
+package me.chenfuduo.myframework;
+
+import android.view.View;
+
+/**
+ * Created by chenfuduo on 2015/10/5.
+ */
+public abstract class BaseHolder<T> {
+
+    protected T data;
+
+    protected View convertView;
+    public BaseHolder() {
+        convertView = initView();
+        convertView.setTag(this);
+    }
+
+    public void setData(T data) {
+        this.data = data;
+        refreshView(data);
+    }
+
+
+    public View getConvertView() {
+        return convertView;
+    }
+
+    protected abstract void refreshView(T data);
+
+    public abstract View initView();
+}
+```
+DefaultAdapter:
+
+```java
+package me.chenfuduo.myframework;
+
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+
+import java.util.List;
+
+/**
+ * Created by chenfuduo on 2015/10/4.
+ */
+public abstract class DefaultAdapter<T> extends BaseAdapter {
+
+    private List<T> datas;
+
+    public DefaultAdapter(List<T> datas) {
+        this.datas = datas;
+    }
+
+    @Override
+    public int getCount() {
+        return datas.size();
+    }
+
+    @Override
+    public Object getItem(int position) {
+        return datas.get(position);
+    }
+
+    @Override
+    public long getItemId(int position) {
+        return position;
+    }
+
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        BaseHolder mainHolder;
+        if (convertView == null) {
+            mainHolder = getHolder();
+        } else {
+            mainHolder = (BaseHolder) convertView.getTag();
+        }
+        T str = datas.get(position);
+        mainHolder.setData(str);
+        return mainHolder.getConvertView();
+    }
+
+    public abstract BaseHolder getHolder();
+}
+
+```
+
+MainActivity:
+
+
+```java
+package me.chenfuduo.myframework;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.ListView;
+import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class MainActivity extends AppCompatActivity {
+
+    private ListView listView;
+
+    private List<String> datas;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        datas = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            datas.add("duoduo" + i);
+        }
+        listView = (ListView) findViewById(R.id.list);
+        listView.setAdapter(new MainAdapter(datas));
+    }
+
+    public void onClick(View view) {
+        Intent intent = new Intent(MainActivity.this, OtherActivity.class);
+        startActivity(intent);
+    }
+
+
+    class MainAdapter extends DefaultAdapter<String> {
+
+        public MainAdapter(List<String> datas) {
+            super(datas);
+        }
+
+        @Override
+        public BaseHolder getHolder() {
+            return new MainHolder();
+        }
+    }
+
+
+    class MainHolder extends BaseHolder<String> {
+        TextView textView;
+        @Override
+        public View initView() {
+            convertView = View.inflate(MainActivity.this, R.layout.list_item_main, null);
+            this.textView = (TextView) convertView.findViewById(R.id.textView);
+            return convertView;
+        }
+
+        @Override
+        protected void refreshView(String data) {
+            this.textView.setText(data);
+        }
+    }
+}
+
+```
+
+OtherActivity:
+
+
+```java
+package me.chenfuduo.myframework;
+
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.ListView;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class OtherActivity extends AppCompatActivity {
+
+    private ListView listView;
+
+    private List<Drawable> datas;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_other);
+        listView = (ListView) findViewById(R.id.list);
+        datas = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            Drawable drawable = getResources().getDrawable(R.mipmap.ic_launcher);
+            datas.add(drawable);
+        }
+
+        listView.setAdapter(new OtherAdapter(datas));
+    }
+
+    class OtherAdapter extends DefaultAdapter<Drawable> {
+
+
+        public OtherAdapter(List<Drawable> datas) {
+            super(datas);
+        }
+
+        @Override
+        public BaseHolder getHolder() {
+            return new OtherHolder();
+        }
+    }
+
+
+    class OtherHolder extends BaseHolder<Drawable> {
+        ImageView imageView;
+        @Override
+        public View initView() {
+            convertView = View.inflate(OtherActivity.this, R.layout.list_item_other, null);
+            this.imageView = (ImageView) convertView.findViewById(R.id.imageView);
+            return convertView;
+        }
+        @Override
+        protected void refreshView(Drawable data) {
+            this.imageView.setImageDrawable(data);
+        }
+    }
+}
+```
+
+## 首页展示图片
+
+首页中有个ViewPager在无线循环轮播广告.这里是实现这个功能。首先找到HomeProtocol:
+```java
+package me.chenfuduo.mymarketpro.protocol;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import me.chenfuduo.mymarketpro.bean.AppInfo;
+
+/**
+ * Created by chenfuduo on 2015/10/2.
+ */
+public class HomeProtocol extends BaseProtocol<List<AppInfo>>{
+
+    private List<String> pictures;
+
+
+    @Override
+    protected List<AppInfo> parserJson(String json) {
+        List<AppInfo> appInfos = new ArrayList<>();
+        pictures = new ArrayList<>();
+        try {
+            JSONObject jsonObject = new JSONObject(json);
+            JSONArray picture = jsonObject.getJSONArray("picture");
+            for (int i = 0; i < picture.length(); i++) {
+                String string = picture.getString(i);
+                pictures.add(string);
+            }
+            JSONArray jsonArray = jsonObject.getJSONArray("list");
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject object = jsonArray.getJSONObject(i);
+                long id = object.getLong("id");
+                String name = object.getString("name");
+                String packageName = object.getString("packageName");
+                String iconUrl = object.getString("iconUrl");
+                float stars = Float.parseFloat(object.getString("stars"));
+                String downloadUrl = object.getString("downloadUrl");
+                long size = object.getLong("size");
+                String des = object.getString("des");
+                AppInfo info = new AppInfo(id, name, packageName,
+                        iconUrl, stars, downloadUrl, des, size);
+                appInfos.add(info);
+            }
+            return appInfos;
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public List<String> getPictures() {
+        return pictures;
+    }
+
+    @Override
+    public String getKey() {
+        return "home";
+    }
+
+
+}
+```
+
+
+再找到HomeFragment:
+
+```java
+package me.chenfuduo.mymarketpro.fragment;
+
+import android.os.Bundle;
+import android.view.View;
+
+import com.lidroid.xutils.bitmap.PauseOnScrollListener;
+
+import java.util.List;
+
+import me.chenfuduo.mymarketpro.R;
+import me.chenfuduo.mymarketpro.adapter.HomeAdapter;
+import me.chenfuduo.mymarketpro.bean.AppInfo;
+import me.chenfuduo.mymarketpro.holder.HomePictureHolder;
+import me.chenfuduo.mymarketpro.protocol.HomeProtocol;
+import me.chenfuduo.mymarketpro.view.BaseListView;
+import me.chenfuduo.mymarketpro.view.LoadingPage;
+
+/**
+ * Created by chenfuduo on 2015/10/1.
+ */
+public class HomeFragment extends BaseFragment {
+    private static final String TAG = HomeFragment.class.getSimpleName();
+
+    List<AppInfo> appInfos;
+
+    private HomeAdapter adapter;
+
+    List<String> pictures;//循环广告
+
+
+    @Override
+    protected View createSuccessView() {
+        BaseListView listView = new BaseListView(getActivity());
+
+        HomePictureHolder homePictureHolder = new HomePictureHolder();
+
+        homePictureHolder.setData(pictures);
+
+        View convertView = homePictureHolder.getConvertView();
+
+        /*convertView.setLayoutParams(new AbsListView.LayoutParams(
+                AbsListView.LayoutParams.MATCH_PARENT,
+                AbsListView.LayoutParams.WRAP_CONTENT));*/
+
+        listView.addHeaderView(convertView);
+
+        if (adapter == null) {
+            adapter = new HomeAdapter(appInfos);
+        }
+
+        listView.setAdapter(adapter);
+
+        bitmapUtils.configDefaultLoadFailedImage(R.drawable.ic_default);
+        bitmapUtils.configDefaultLoadingImage(R.drawable.ic_default);
+
+        listView.setOnScrollListener(new PauseOnScrollListener
+                (bitmapUtils, false, true));
+
+        return listView;
+    }
+
+    @Override
+    public LoadingPage.LoadResult load() {
+        HomeProtocol protocol = new HomeProtocol();
+        appInfos = protocol.load(0);
+        /*for (AppInfo info :
+                appInfos) {
+            System.out.println(info.toString());
+
+        }*/
+
+        pictures = protocol.getPictures();
+
+        return checkData(appInfos);
+    }
+
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        show();
+    }
+}
+```
+最后基于holder编程：
+```java
+package me.chenfuduo.mymarketpro.holder;
+
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AbsListView;
+import android.widget.ImageView;
+
+import com.lidroid.xutils.BitmapUtils;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import me.chenfuduo.mymarketpro.R;
+import me.chenfuduo.mymarketpro.http.HttpHelper;
+import me.chenfuduo.mymarketpro.utils.BitmapHelper;
+import me.chenfuduo.mymarketpro.utils.UIUtils;
+
+/**
+ * Created by chenfuduo on 2015/10/5.
+ */
+public class HomePictureHolder extends BaseViewHolder<List<String>> {
+
+    private static final String TAG = HomePictureHolder.class.getSimpleName();
+    private ViewPager viewPager;
+
+    private List<String> datas;
+
+    @Override
+    public View initView() {
+        viewPager = new ViewPager(UIUtils.getContext());
+        viewPager.setLayoutParams(new AbsListView.LayoutParams(
+                AbsListView.LayoutParams.MATCH_PARENT, UIUtils
+                .getDimens(R.dimen.home_picture_height)));
+        return viewPager;
+    }
+
+    @Override
+    public void refreshView(List<String> datas) {
+        this.datas = datas;
+        viewPager.setAdapter(new HomePictureAdapter());
+        viewPager.setCurrentItem(1000 * datas.size());
+    }
+
+    class HomePictureAdapter extends PagerAdapter {
+
+        //优化   不必没次都去创建ImageView
+        LinkedList<ImageView> convertView = new LinkedList<>();
+
+        @Override
+        public int getCount() {
+            return Integer.MAX_VALUE;
+        }
+
+        @Override
+        public boolean isViewFromObject(View view, Object object) {
+            return view == object;
+        }
+
+        @Override
+        public Object instantiateItem(ViewGroup container, int position) {
+            int index = position % datas.size();
+            ImageView imageView;
+            if (convertView.size() > 0) {
+                imageView = convertView.remove(0);
+                Log.e(TAG, "instantiateItem " + "不必创建");
+            } else {
+                imageView = new ImageView(UIUtils.getContext());
+                Log.e(TAG, "instantiateItem " + "必须创建");
+            }
+            BitmapUtils bitmapUtils = BitmapHelper.getInstance();
+            bitmapUtils.display(imageView, HttpHelper.URL + "image?name=" + datas.get(index));
+            container.addView(imageView);
+            return imageView;
+        }
+
+        @Override
+        public void destroyItem(ViewGroup container, int position, Object object) {
+            //super.destroyItem(container, position, object);
+            ImageView view = (ImageView) object;
+            convertView.add(view);
+            container.removeView(view);
+        }
+    }
+
+}
+```
+这里需要注意的是ViewPager的一点优化。
+
+
+## 轮播图的无线循环
+
+```java
+package me.chenfuduo.mymarketpro.holder;
+
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AbsListView;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
+
+import com.lidroid.xutils.BitmapUtils;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import me.chenfuduo.mymarketpro.R;
+import me.chenfuduo.mymarketpro.http.HttpHelper;
+import me.chenfuduo.mymarketpro.utils.BitmapHelper;
+import me.chenfuduo.mymarketpro.utils.UIUtils;
+import me.chenfuduo.mymarketpro.view.IndicatorView;
+
+/**
+ * Created by chenfuduo on 2015/10/5.
+ */
+public class HomePictureHolder extends BaseViewHolder<List<String>> {
+
+    private static final String TAG = HomePictureHolder.class.getSimpleName();
+    private ViewPager viewPager;
+
+    private List<String> datas;
+    private AutoRunTask autoRunTask;
+
+    private RelativeLayout.LayoutParams rl;
+    private IndicatorView indicatorView;
+
+    @Override
+    public View initView() {
+        // 初始化头。由于使用相对布局方便放置可以跳动的点
+        RelativeLayout mHeadView = new RelativeLayout(UIUtils.getContext());
+        // 设置轮播图的宽和高
+        AbsListView.LayoutParams params = new AbsListView.LayoutParams(
+                AbsListView.LayoutParams.MATCH_PARENT,
+                UIUtils.getDimens(R.dimen.list_header_hight));
+
+        mHeadView.setLayoutParams(params);
+        // 初始化轮播图
+
+        viewPager = new ViewPager(UIUtils.getContext());
+        // 初始化轮播图的宽和高
+
+        rl = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.MATCH_PARENT);
+
+        viewPager.setLayoutParams(rl);
+
+        HomePictureAdapter adapter = new HomePictureAdapter();
+
+        viewPager.setAdapter(adapter);
+        // 初始化点
+
+        indicatorView = new IndicatorView(UIUtils.getContext());
+
+        rl = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT);
+        // 设置到屏幕的下边
+        rl.addRule(mHeadView.ALIGN_PARENT_BOTTOM);
+        rl.addRule(mHeadView.ALIGN_PARENT_RIGHT);
+        // 设置点的背景图片
+        indicatorView.setIndicatorDrawable(UIUtils
+                .getDrawable(R.drawable.indicator));
+        // 设置点的间距
+        rl.setMargins(0, 0, 20, 20);
+        indicatorView.setLayoutParams(rl);
+
+        indicatorView.setSelection(0);
+
+        // 把点和轮播图添加到头里面去
+        mHeadView.addView(viewPager);
+
+        mHeadView.addView(indicatorView);
+
+        return mHeadView;
+    }
+
+    @Override
+    public void refreshView(final List<String> datas) {
+        this.datas = datas;
+        viewPager.setAdapter(new HomePictureAdapter());
+        viewPager.setCurrentItem(1000 * datas.size());
+        viewPager.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        autoRunTask.stop();
+                        break;
+                    //此处是修改bug。
+                    case MotionEvent.ACTION_CANCEL:
+                        autoRunTask.start();
+                        break;
+                    case MotionEvent.ACTION_UP:
+                        autoRunTask.start();
+                        break;
+                }
+                //此处不能返回true
+                //ViewPager触摸事件返回false
+                return false;
+            }
+        });
+
+        viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+            @Override
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+
+            }
+
+            @Override
+            public void onPageSelected(int position) {
+                indicatorView.setSelection(position % datas.size());
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+
+            }
+        });
+
+        indicatorView.setCount(data.size());
+
+        autoRunTask = new AutoRunTask();
+        autoRunTask.start();
+    }
+
+
+    boolean flag;
+
+    class AutoRunTask implements Runnable {
+
+        @Override
+        public void run() {
+            if (flag) {
+                UIUtils.removeCallbacks(this);
+                int currentItem = viewPager.getCurrentItem();
+                currentItem++;
+                viewPager.setCurrentItem(currentItem);
+                UIUtils.postDelayed(this, 1500);
+            }
+        }
+
+        public void start() {
+            if (!flag) {
+                UIUtils.removeCallbacks(this);
+                flag = true;
+                UIUtils.postDelayed(this, 1500);
+            }
+        }
+
+        public void stop() {
+            if (flag) {
+                flag = false;
+                UIUtils.removeCallbacks(this);
+            }
+        }
+    }
+
+    class HomePictureAdapter extends PagerAdapter {
+
+        //优化   不必没次都去创建ImageView
+        LinkedList<ImageView> convertView = new LinkedList<>();
+
+        @Override
+        public int getCount() {
+            return Integer.MAX_VALUE;
+        }
+
+        @Override
+        public boolean isViewFromObject(View view, Object object) {
+            return view == object;
+        }
+
+        @Override
+        public Object instantiateItem(ViewGroup container, int position) {
+            int index = position % datas.size();
+            ImageView imageView;
+            if (convertView.size() > 0) {
+                imageView = convertView.remove(0);
+                Log.e(TAG, "instantiateItem " + "不必创建");
+            } else {
+                imageView = new ImageView(UIUtils.getContext());
+                Log.e(TAG, "instantiateItem " + "必须创建");
+            }
+            BitmapUtils bitmapUtils = BitmapHelper.getInstance();
+            bitmapUtils.display(imageView, HttpHelper.URL + "image?name=" + datas.get(index));
+            container.addView(imageView);
+            return imageView;
+        }
+
+        @Override
+        public void destroyItem(ViewGroup container, int position, Object object) {
+            //super.destroyItem(container, position, object);
+            ImageView view = (ImageView) object;
+            convertView.add(view);
+            container.removeView(view);
+        }
+    }
+
+}
+```
+
+此处还是有几处需要注意的。
+实现的效果图如下：
+
+![效果图](http://7xljei.com1.z0.glb.clouddn.com/circleimageview1005.gif)
+
+
+## 条目点击事件
+
+条目点击事件实质上很简单,但是因为在HomeFragment上,ListView有个HeadView是ViewPager,会导致ListView的条目的
+position不是按照原来的样子了.在基类的adapter中：
+```java
+@Override
+    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        //获取顶部条目的数量
+        int headerViewsCount = listView.getHeaderViewsCount();
+        position = position - headerViewsCount;
+        //Toast.makeText(UIUtils.getContext(),"position:" + position,Toast.LENGTH_SHORT).show();
+        onInnerItemClick(position);
+    }
+
+    /**
+     * 该方法去处理条目点击事件
+     * @param position
+     */
+    public void onInnerItemClick(int position) {
+
+    }
+```
+此处需要留意这个api:
+`getHeaderViewsCount()`.
+
+其他不多说。
+
+
+## DetailActivity数据解析
+
+数据的json格式如下：
+![数据的json格式](http://7xljei.com1.z0.glb.clouddn.com/微信截图_20151005225006.png)
+
+
+```java
+package me.chenfuduo.mymarketpro.protocol;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import me.chenfuduo.mymarketpro.bean.AppInfo;
+
+/**
+ * Created by chenfuduo on 2015/10/5.
+ */
+public class DetailProtocol extends BaseProtocol<AppInfo> {
+
+    String packageName;
+
+    public DetailProtocol(String packageName) {
+        this.packageName = packageName;
+    }
+
+    @Override
+    protected AppInfo parserJson(String json) {
+        try {
+            JSONObject object = new JSONObject(json);
+            long id = object.getLong("id");
+            String name = object.getString("name");
+            String packageName = object.getString("packageName");
+            String iconUrl = object.getString("iconUrl");
+            float stars = Float.parseFloat(object.getString("stars"));
+            long size = object.getLong("size");
+            String downloadUrl = object.getString("downloadUrl");
+            String des = object.getString("des");
+            String downloadNum = object.getString("downloadNum");
+            String version = object.getString("version");
+            String date = object.getString("date");
+            String author = object.getString("author");
+            List<String> screen = new ArrayList<>();
+            JSONArray screenArray = object.getJSONArray("screen");
+            for (int i = 0; i < screenArray.length(); i++) {
+                screen.add(screenArray.getString(i));
+            }
+
+            List<String> safeUrl = new ArrayList<>();
+            List<String> safeDesUrl = new ArrayList<>();
+            List<String> safeDes = new ArrayList<>();
+            List<Integer> safeDesColor = new ArrayList<>();
+            JSONArray jsonArray = object.getJSONArray("safe");
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                safeUrl.add(jsonObject.getString("safeUrl"));
+                safeDesUrl.add(jsonObject.getString("safeDesUrl"));
+                safeDes.add(jsonObject.getString("safeDes"));
+                safeDesColor.add(jsonObject.getInt("safeDesColor"));
+
+            }
+            AppInfo appInfo = new AppInfo(id, name, packageName, iconUrl,
+                    stars, size, downloadUrl, des, downloadNum, version, date,
+                    author, screen, safeUrl, safeDesUrl, safeDes, safeDesColor);
+            return appInfo;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @Override
+    public String getKey() {
+        return "detail";
+    }
+
+    @Override
+    protected String getParames() {
+        return "&packageName=" + packageName;
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

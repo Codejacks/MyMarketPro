@@ -2,6 +2,7 @@ package me.chenfuduo.mymarketpro.adapter;
 
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import com.lidroid.xutils.BitmapUtils;
@@ -12,6 +13,7 @@ import me.chenfuduo.mymarketpro.R;
 import me.chenfuduo.mymarketpro.bean.SubjectInfo;
 import me.chenfuduo.mymarketpro.holder.BaseViewHolder;
 import me.chenfuduo.mymarketpro.http.HttpHelper;
+import me.chenfuduo.mymarketpro.protocol.SubjectProtocol;
 import me.chenfuduo.mymarketpro.utils.BitmapHelper;
 import me.chenfuduo.mymarketpro.utils.UIUtils;
 
@@ -20,13 +22,21 @@ import me.chenfuduo.mymarketpro.utils.UIUtils;
  */
 public class SubjectAdapter extends DefaultAdapter<SubjectInfo> {
 
-    public SubjectAdapter(List<SubjectInfo> subjectInfos) {
-        super(subjectInfos);
+    public SubjectAdapter(List<SubjectInfo> subjectInfos,ListView listView) {
+        super(subjectInfos,listView);
     }
 
     @Override
     public BaseViewHolder<SubjectInfo> getHolder() {
         return new ViewHolder();
+    }
+
+    @Override
+    protected List<SubjectInfo> onload() {
+        SubjectProtocol subjectProtocol = new SubjectProtocol();
+        List<SubjectInfo> subjectInfos = subjectProtocol.load(datas.size());
+        datas.addAll(subjectInfos);
+        return subjectInfos;
     }
 
     static class ViewHolder extends BaseViewHolder<SubjectInfo>{

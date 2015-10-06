@@ -33,7 +33,7 @@ public class SubjectFragment extends BaseFragment {
     protected View createSuccessView() {
         BaseListView listView = new BaseListView(UIUtils.getContext());
         if (adapter == null){
-            adapter = new SubjectAdapter(subjectInfos);
+            adapter = new SubjectAdapter(subjectInfos,listView);
         }
         listView.setAdapter(adapter);
         bitmapUtils.configDefaultLoadFailedImage(R.drawable.ic_default);

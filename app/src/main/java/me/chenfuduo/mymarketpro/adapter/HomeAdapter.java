@@ -1,8 +1,10 @@
 package me.chenfuduo.mymarketpro.adapter;
 
+import android.content.Intent;
 import android.text.format.Formatter;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.RatingBar;
 import android.widget.TextView;
 
@@ -10,10 +12,12 @@ import com.lidroid.xutils.BitmapUtils;
 
 import java.util.List;
 
+import me.chenfuduo.mymarketpro.DetailActivity;
 import me.chenfuduo.mymarketpro.R;
 import me.chenfuduo.mymarketpro.bean.AppInfo;
 import me.chenfuduo.mymarketpro.holder.BaseViewHolder;
 import me.chenfuduo.mymarketpro.http.HttpHelper;
+import me.chenfuduo.mymarketpro.protocol.HomeProtocol;
 import me.chenfuduo.mymarketpro.utils.BitmapHelper;
 import me.chenfuduo.mymarketpro.utils.UIUtils;
 
@@ -21,8 +25,23 @@ import me.chenfuduo.mymarketpro.utils.UIUtils;
  * Created by chenfuduo on 2015/10/2.
  */
 public class HomeAdapter extends DefaultAdapter<AppInfo> {
-    public HomeAdapter(List<AppInfo> appInfos) {
-        super(appInfos);
+
+    private ListView listView;
+
+    public HomeAdapter(List<AppInfo> appInfos,ListView listView) {
+        super(appInfos,listView);
+        this.listView = listView;
+    }
+
+    @Override
+    public void onInnerItemClick(int position) {
+        super.onInnerItemClick(position);
+        Intent intent = new Intent(UIUtils.getContext(), DetailActivity.class);
+        AppInfo appInfo = datas.get(position);
+        String packageName = appInfo.getPackageName();
+        intent.putExtra("packageName",packageName);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        UIUtils.getContext().startActivity(intent);
     }
 
     @Override
@@ -32,6 +51,14 @@ public class HomeAdapter extends DefaultAdapter<AppInfo> {
             viewHolder = new ViewHolder();
         }
         return viewHolder;
+    }
+
+    @Override
+    protected List<AppInfo> onload() {
+        HomeProtocol homeProtocol = new HomeProtocol();
+        List<AppInfo> appInfoList = homeProtocol.load(datas.size());
+        datas.addAll(appInfoList);
+        return appInfoList;
     }
 
     static class ViewHolder extends BaseViewHolder<AppInfo>{
